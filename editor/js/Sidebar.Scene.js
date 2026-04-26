@@ -105,7 +105,7 @@ function SidebarScene( editor ) {
 
 			const geometry = object.geometry;
 			const material = object.material;
-
+            html += ` <span class="type Animation"></span> Animation`;
 			html += ` <span class="type Geometry"></span> ${ escapeHTML( geometry.name ) }`;
 			html += ` <span class="type Material"></span> ${ escapeHTML( getMaterialName( material ) ) }`;
 
