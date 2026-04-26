@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-import { UIPanel, UIBreak, UIRow, UIColor, UISelect, UIText, UINumber } from './libs/ui.js';
+import { UIPanel, UIBreak, UIRow, UIColor, UISelect, UIText, UINumber ,UIButton} from './libs/ui.js';
 import { UIOutliner, UITexture } from './libs/ui.three.js';
 
 function SidebarScene( editor ) {
@@ -343,7 +343,26 @@ function SidebarScene( editor ) {
 	fogTypeRow.add( fogType );
 
 	container.add( fogTypeRow );
+    const testRow = new UIRow();
 
+    const testButton = new UIButton();
+testButton.setLabel('測試按鈕');
+
+    testButton.onClick(function () {
+
+        const object = editor.selected;
+
+        if (!object) {
+            console.log('沒有選物件');
+            return;
+        }
+
+        console.log('目前選到：', object.name);
+
+    });
+
+testRow.add(testButton);
+container.add(testRow);
 	// fog color
 
 	const fogPropertiesRow = new UIRow();
