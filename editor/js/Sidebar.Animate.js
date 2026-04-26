@@ -9,97 +9,86 @@ function SidebarAnimate(editor) {
 
 	let currentObject = null;
 
-	const title = new UIText('動畫編輯器');
+	const title = new UIText('Frame 動畫編輯器');
 	container.add(title);
 
-	const timelineContainer = new UIPanel();
-	container.add(timelineContainer);
+	const list = new UIPanel();
+	container.add(list);
 
-	// -------------------------
-	// 工具：確保 timeline
-	// -------------------------
-	function ensureTimeline(obj) {
+	// --------------------------
+	// ensure frames
+	// --------------------------
+	function getFrames(obj) {
 
-		if (!obj.userData.timeline) {
-
-			obj.userData.timeline = {
-				loop: true,
-				frames: []
-			};
-
+		if (!obj.userData.frames) {
+			obj.userData.frames = [];
 		}
 
-		return obj.userData.timeline;
+		return obj.userData.frames;
 
 	}
 
-	// -------------------------
-	// 新增 frame（固定 +1 秒）
-	// -------------------------
-	const addFrameBtn = new UIButton('新增 1 秒帧').onClick(() => {
+	// --------------------------
+	// swap frames（核心）
+	// --------------------------
+	function swapFrames(frames, i, j) {
 
-		if (!currentObject) return;
-
-		const timeline = ensureTimeline(currentObject);
-
-		const lastT = timeline.frames.length
-			? timeline.frames[timeline.frames.length - 1].t
-			: 0;
-
-		timeline.frames.push({
-			t: lastT + 1,
-			pos: [0, 0, 0],
-			rot: [0, 0, 0],
-			scl: [1, 1, 1]
-		});
-
-		sortFrames();
-		updateUI();
-
-	});
-
-	container.add(addFrameBtn);
-
-	// -------------------------
-	// 排序 frames
-	// -------------------------
-	function sortFrames() {
-
-		if (!currentObject) return;
-
-		const timeline = currentObject.userData.timeline;
-		timeline.frames.sort((a, b) => a.t - b.t);
+		const tmp = frames[i];
+		frames[i] = frames[j];
+		frames[j] = tmp;
 
 	}
 
-	// -------------------------
-	// UI 更新
-	// -------------------------
+	// --------------------------
+	// sort by time
+	// --------------------------
+	function sortFrames(frames) {
+
+		frames.sort((a, b) => a.t - b.t);
+
+	}
+
+	// --------------------------
+	// UI rebuild
+	// --------------------------
 	function updateUI() {
 
-		timelineContainer.clear();
+		list.clear();
 
 		if (!currentObject) return;
 
-		const timeline = ensureTimeline(currentObject);
+		const frames = getFrames(currentObject);
 
-		timeline.frames.forEach((frame, index) => {
+		frames.forEach((frame, index) => {
 
 			const row = new UIRow();
 
-			// ====== 可拖時間（核心）======
+			// ===== index drag handle =====
+			const handle = new UIButton('⇅').onClick(() => {
+
+				// 跟下一個交換（模擬 reorder）
+				if (index < frames.length - 1) {
+
+					swapFrames(frames, index, index + 1);
+					updateUI();
+
+				}
+
+			});
+
+			// ===== time =====
 			const tInput = new UINumber(frame.t)
 				.setWidth('60px')
 				.setRange(0, 999)
 				.onChange(() => {
 
 					frame.t = tInput.getValue();
-					sortFrames();
+					sortFrames(frames);
 					updateUI();
 
 				});
 
-			// ====== position ======
+			// ===== position =====
 			const px = new UINumber(frame.pos?.[0] || 0).setWidth('50px').onChange(() => {
 				frame.pos = frame.pos || [0, 0, 0];
 				frame.pos[0] = px.getValue();
@@ -115,57 +104,60 @@ function SidebarAnimate(editor) {
 				frame.pos[2] = pz.getValue();
 			});
 
-			// ====== delete ======
-			const delBtn = new UIButton('刪除').onClick(() => {
+			// ===== delete =====
+			const del = new UIButton('X').onClick(() => {
 
-				const timeline = currentObject.userData.timeline;
-				timeline.frames.splice(index, 1);
+				frames.splice(index, 1);
 				updateUI();
 
 			});
 
-			// label
 			row.add(
-				new UIText(`Frame ${index}`),
+				new UIText(`#${index}`),
+				handle,
 				new UIText('t'),
 				tInput,
 				new UIText('pos'),
 				px, py, pz,
-				delBtn
+				del
 			);
 
-			timelineContainer.add(row);
+			list.add(row);
 
 		});
 
 	}
 
-	// -------------------------
-	// 播放控制
-	// -------------------------
-	let playing = false;
-	let startTime = 0;
-
-	const playBtn = new UIButton('播放 / 暫停').onClick(() => {
+	// --------------------------
+	// add frame
+	// --------------------------
+	const addBtn = new UIButton('新增 Frame').onClick(() => {
 
 		if (!currentObject) return;
 
-		playing = !playing;
-		startTime = performance.now();
+		const frames = getFrames(currentObject);
+
+		const last = frames.length ? frames[frames.length - 1].t : 0;
+
+		frames.push({
+			t: last + 1,
+			pos: [0, 0, 0],
+			rot: [0, 0, 0]
+		});
+
+		updateUI();
 
 	});
 
-	container.add(playBtn);
+	container.add(addBtn);
 
-	// -------------------------
-	// 套用 timeline
-	// -------------------------
-	function applyTimeline(object, time) {
+	// --------------------------
+	// apply animation
+	// --------------------------
+	function apply(object, time) {
 
-		const timeline = object.userData.timeline;
-		if (!timeline || timeline.frames.length < 2) return;
-
-		const frames = timeline.frames;
+		const frames = object.userData.frames;
+		if (!frames || frames.length < 2) return;
 
 		let f1 = frames[0];
 		let f2 = frames[frames.length - 1];
@@ -183,7 +175,6 @@ function SidebarAnimate(editor) {
 		const dt = f2.t - f1.t;
 		const a = dt === 0 ? 0 : (time - f1.t) / dt;
 
-		// position
 		if (f1.pos && f2.pos) {
 
 			object.position.set(
@@ -194,7 +185,6 @@ function SidebarAnimate(editor) {
 
 		}
 
-		// rotation
 		if (f1.rot && f2.rot) {
 
 			object.rotation.set(
@@ -211,10 +201,27 @@ function SidebarAnimate(editor) {
 		return a + (b - a) * t;
 	}
 
-	// -------------------------
-	// 選取物件
-	// -------------------------
-	editor.signals.objectSelected.add(function (object) {
+	// --------------------------
+	// play
+	// --------------------------
+	let playing = false;
+	let start = 0;
+
+	const playBtn = new UIButton('Play').onClick(() => {
+
+		if (!currentObject) return;
+
+		playing = !playing;
+		start = performance.now();
+
+	});
+
+	container.add(playBtn);
+
+	// --------------------------
+	// select object
+	// --------------------------
+	editor.signals.objectSelected.add(object => {
 
 		if (object && object.isMesh) {
 
@@ -231,16 +238,16 @@ function SidebarAnimate(editor) {
 
 	});
 
-	// -------------------------
-	// 每幀更新播放
-	// -------------------------
-	editor.signals.rendererUpdated.add(function () {
+	// --------------------------
+	// update loop
+	// --------------------------
+	editor.signals.rendererUpdated.add(() => {
 
 		if (!playing || !currentObject) return;
 
-		const t = (performance.now() - startTime) / 1000;
+		const t = (performance.now() - start) / 1000;
 
-		applyTimeline(currentObject, t);
+		apply(currentObject, t);
 
 	});
 
