@@ -4,7 +4,7 @@ function SidebarAnimate( editor ) {
 
 	const container = new UIPanel();
 
-	const title = new UIText('Animation Panel');
+	const title = new UIText('動畫編輯器');
 	container.add(title);
 
 	const playBtn = new UIButton('Play').onClick(() => {
