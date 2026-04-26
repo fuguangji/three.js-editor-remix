@@ -3,7 +3,6 @@ import { UIPanel, UIText, UIButton } from './libs/ui.js';
 function SidebarAnimate( editor ) {
 
 	const container = new UIPanel();
-	container.setDisplay('none');
 
 	const title = new UIText('Animation Panel');
 	container.add(title);
@@ -19,16 +18,6 @@ function SidebarAnimate( editor ) {
 	});
 
 	container.add(playBtn);
-
-	editor.signals.objectSelected.add(function (object) {
-
-		if (object && object.isMesh) {
-			container.setDisplay('');
-		} else {
-			container.setDisplay('none');
-		}
-
-	});
 
 	return container;
 
