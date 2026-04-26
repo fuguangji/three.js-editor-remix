@@ -34,36 +34,42 @@ function SidebarProperties( editor ) {
 	const geometryTab = getTabByTabId( container.tabs, 'geometryTab' );
 	const materialTab = getTabByTabId( container.tabs, 'materialTab' );
 	const scriptTab = getTabByTabId( container.tabs, 'scriptTab' );
+	const animateTab = getTabByTabId( container.tabs, 'animateTab' );
 
-	function toggleTabs( object ) {
+    function toggleTabs( object ) {
 
-		container.setHidden( object === null );
+	    container.setHidden( object === null );
 
-		if ( object === null ) return;
+	    if ( object === null ) return;
 
-		geometryTab.setHidden( ! object.geometry );
+	    geometryTab.setHidden( ! object.geometry );
+	    materialTab.setHidden( ! object.material );
+	    scriptTab.setHidden( object === editor.camera );
 
-		materialTab.setHidden( ! object.material );
+	    // ✅ 新增：animation tab 控制
+	    animateTab.setHidden( ! object.isMesh );
 
-		scriptTab.setHidden( object === editor.camera );
+	    // set active tab
 
-		// set active tab
+    	if ( container.selected === 'geometryTab' ) {
 
-		if ( container.selected === 'geometryTab' ) {
+	    	container.select( geometryTab.isHidden() ? 'objectTab' : 'geometryTab' );
 
-			container.select( geometryTab.isHidden() ? 'objectTab' : 'geometryTab' );
+    	} else if ( container.selected === 'materialTab' ) {
 
-		} else if ( container.selected === 'materialTab' ) {
+		    container.select( materialTab.isHidden() ? 'objectTab' : 'materialTab' );
 
-			container.select( materialTab.isHidden() ? 'objectTab' : 'materialTab' );
+    	} else if ( container.selected === 'scriptTab' ) {
 
-		} else if ( container.selected === 'scriptTab' ) {
+    		container.select( scriptTab.isHidden() ? 'objectTab' : 'scriptTab' );
 
-			container.select( scriptTab.isHidden() ? 'objectTab' : 'scriptTab' );
+    	} else if ( container.selected === 'animateTab' ) {
 
-		}
+		    container.select( animateTab.isHidden() ? 'objectTab' : 'animateTab' );
 
-	}
+	    }
+
+    }
 
 	editor.signals.objectSelected.add( toggleTabs );
 
