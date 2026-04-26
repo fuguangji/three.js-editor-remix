@@ -9,14 +9,13 @@ function SidebarAnimate( editor ) {
 
 	let currentObject = null;
 
-	const title = new UIText('Animation Timeline');
+	const title = new UIText('動畫編輯器');
 	container.add(title);
 
 	const timelineContainer = new UIPanel();
 	container.add(timelineContainer);
 
-	// ➕ 新增 frame
-	const addFrameBtn = new UIButton('Add Frame').onClick(() => {
+	const addFrameBtn = new UIButton('添加新的一秒').onClick(() => {
 
 		if (!currentObject) return;
 
@@ -27,7 +26,8 @@ function SidebarAnimate( editor ) {
 		currentObject.userData.timeline.frames.push({
 			t: 0,
 			pos: [0,0,0],
-			rot: [0,0,0]
+			rot: [0,0,0],
+			scl: [1,1,1]
 		});
 
 		updateUI();
@@ -35,8 +35,6 @@ function SidebarAnimate( editor ) {
 	});
 
 	container.add(addFrameBtn);
-
-	// 🔄 UI刷新
 	function updateUI() {
 
 		timelineContainer.clear();
@@ -49,10 +47,7 @@ function SidebarAnimate( editor ) {
 
 			const row = new UIRow();
 
-			const label = new UIText(`F${index}`);
-			const time = new UINumber(frame.t).setWidth('40px').onChange(() => {
-				frame.t = time.getValue();
-			});
+			const label = new UIText(`第${index}秒`);
 
 			const posX = new UINumber(frame.pos?.[0] || 0).setWidth('40px').onChange(() => {
 				frame.pos = frame.pos || [0,0,0];
@@ -67,7 +62,7 @@ function SidebarAnimate( editor ) {
 				frame.pos[2] = posZ.getValue();
 			});
 
-			row.add(label, time, posX, posY, posZ);
+			row.add(label, posX, posY, posZ);
 
 			timelineContainer.add(row);
 
@@ -75,11 +70,10 @@ function SidebarAnimate( editor ) {
 
 	}
 
-	// ▶ 播放控制
 	let playing = false;
 	let startTime = 0;
 
-	const playBtn = new UIButton('Play / Pause').onClick(() => {
+	const playBtn = new UIButton('步進動畫（秒）').onClick(() => {
 
 		if (!currentObject) return;
 
@@ -90,7 +84,6 @@ function SidebarAnimate( editor ) {
 
 	container.add(playBtn);
 
-	// 📡 接收選取事件
 	editor.signals.objectSelected.add(function (object) {
 
 		if (object && object.isMesh) {
@@ -108,7 +101,6 @@ function SidebarAnimate( editor ) {
 
 	});
 
-	// 🔥 註冊動畫更新（核心）
 	editor.signals.rendererUpdated.add(function () {
 
 		if (!playing || !currentObject) return;
@@ -119,7 +111,6 @@ function SidebarAnimate( editor ) {
 
 	});
 
-	// 🎯 timeline 套用
 	function applyTimeline(object, time) {
 
 		const timeline = object.userData.timeline;
