@@ -343,24 +343,6 @@ function SidebarScene( editor ) {
 	fogTypeRow.add( fogType );
 
 	container.add( fogTypeRow );
-    const testRow = new UIRow();
-    const testButton = new UIButton();
-testButton.setLabel('測試按鈕');
-
-    testButton.onClick(function () {
-
-        const object = editor.selected;
-
-        if (!object) {
-            console.log('沒有選物件');
-            return;
-        }
-
-        console.log('目前選到：', object.name);
-
-    });
-    testRow.add(testButton);
-    container.add(testRow);
 	// fog color
 
 	const fogPropertiesRow = new UIRow();
@@ -601,16 +583,6 @@ testButton.setLabel('測試按鈕');
 		}
 
 	} );
-const debugBtn = document.createElement('button');
-debugBtn.innerText = 'DEBUG BUTTON';
-debugBtn.style.position = 'fixed';
-debugBtn.style.bottom = '10px';
-debugBtn.style.left = '10px';
-debugBtn.style.zIndex = '9999';
-
-debugBtn.onclick = () => console.log('clicked');
-
-document.body.appendChild(debugBtn);
 	return container;
 
 }
