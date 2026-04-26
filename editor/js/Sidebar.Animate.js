@@ -9,15 +9,17 @@ function SidebarAnimate(editor) {
 
 	let currentObject = null;
 
+	let dragIndex = null;
+
 	const title = new UIText('Frame 動畫編輯器');
 	container.add(title);
 
 	const list = new UIPanel();
 	container.add(list);
 
-	// --------------------------
-	// ensure frames
-	// --------------------------
+	// -------------------------
+	// frames helper
+	// -------------------------
 	function getFrames(obj) {
 
 		if (!obj.userData.frames) {
@@ -28,29 +30,29 @@ function SidebarAnimate(editor) {
 
 	}
 
-	// --------------------------
-	// swap frames（核心）
-	// --------------------------
-	function swapFrames(frames, i, j) {
-
-		const tmp = frames[i];
-		frames[i] = frames[j];
-		frames[j] = tmp;
-
-	}
-
-	// --------------------------
-	// sort by time
-	// --------------------------
+	// -------------------------
+	// sort frames
+	// -------------------------
 	function sortFrames(frames) {
 
 		frames.sort((a, b) => a.t - b.t);
 
 	}
 
-	// --------------------------
-	// UI rebuild
-	// --------------------------
+	// -------------------------
+	// swap frames
+	// -------------------------
+	function swap(frames, a, b) {
+
+		const tmp = frames[a];
+		frames[a] = frames[b];
+		frames[b] = tmp;
+
+	}
+
+	// -------------------------
+	// UI render
+	// -------------------------
 	function updateUI() {
 
 		list.clear();
@@ -63,16 +65,33 @@ function SidebarAnimate(editor) {
 
 			const row = new UIRow();
 
-			// ===== index drag handle =====
-			const handle = new UIButton('⇅').onClick(() => {
+			// ===== drag enable =====
+			row.dom.draggable = true;
 
-				// 跟下一個交換（模擬 reorder）
-				if (index < frames.length - 1) {
+			// ===== drag start =====
+			row.dom.addEventListener('dragstart', () => {
 
-					swapFrames(frames, index, index + 1);
-					updateUI();
+				dragIndex = index;
 
-				}
+			});
+
+			// ===== allow drop =====
+			row.dom.addEventListener('dragover', (e) => {
+
+				e.preventDefault();
+
+			});
+
+			// ===== drop swap =====
+			row.dom.addEventListener('drop', () => {
+
+				if (dragIndex === null || dragIndex === index) return;
+
+				swap(frames, dragIndex, index);
+
+				dragIndex = null;
+
+				updateUI();
 
 			});
 
@@ -105,7 +124,7 @@ function SidebarAnimate(editor) {
 			});
 
 			// ===== delete =====
-			const del = new UIButton('X').onClick(() => {
+			const del = new UIButton('刪除').onClick(() => {
 
 				frames.splice(index, 1);
 				updateUI();
@@ -114,7 +133,6 @@ function SidebarAnimate(editor) {
 
 			row.add(
 				new UIText(`#${index}`),
-				handle,
 				new UIText('t'),
 				tInput,
 				new UIText('pos'),
@@ -128,9 +146,9 @@ function SidebarAnimate(editor) {
 
 	}
 
-	// --------------------------
+	// -------------------------
 	// add frame
-	// --------------------------
+	// -------------------------
 	const addBtn = new UIButton('新增 Frame').onClick(() => {
 
 		if (!currentObject) return;
@@ -151,9 +169,9 @@ function SidebarAnimate(editor) {
 
 	container.add(addBtn);
 
-	// --------------------------
+	// -------------------------
 	// apply animation
-	// --------------------------
+	// -------------------------
 	function apply(object, time) {
 
 		const frames = object.userData.frames;
@@ -201,13 +219,13 @@ function SidebarAnimate(editor) {
 		return a + (b - a) * t;
 	}
 
-	// --------------------------
-	// play
-	// --------------------------
+	// -------------------------
+	// play system
+	// -------------------------
 	let playing = false;
 	let start = 0;
 
-	const playBtn = new UIButton('Play').onClick(() => {
+	const playBtn = new UIButton('Play / Pause').onClick(() => {
 
 		if (!currentObject) return;
 
@@ -218,9 +236,9 @@ function SidebarAnimate(editor) {
 
 	container.add(playBtn);
 
-	// --------------------------
+	// -------------------------
 	// select object
-	// --------------------------
+	// -------------------------
 	editor.signals.objectSelected.add(object => {
 
 		if (object && object.isMesh) {
@@ -238,9 +256,9 @@ function SidebarAnimate(editor) {
 
 	});
 
-	// --------------------------
-	// update loop
-	// --------------------------
+	// -------------------------
+	// render loop
+	// -------------------------
 	editor.signals.rendererUpdated.add(() => {
 
 		if (!playing || !currentObject) return;
