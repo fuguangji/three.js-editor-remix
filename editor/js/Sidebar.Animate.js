@@ -1,6 +1,6 @@
 import { UIPanel, UIRow, UIText, UIButton, UINumber } from './libs/ui.js';
 
-function SidebarAnimation( editor ) {
+function SidebarAnimate( editor ) {
 
 	const container = new UIPanel();
 	container.setBorderTop('0');
@@ -167,4 +167,4 @@ function SidebarAnimation( editor ) {
 
 }
 
-export { SidebarAnimation };
+export { SidebarAnimate };
