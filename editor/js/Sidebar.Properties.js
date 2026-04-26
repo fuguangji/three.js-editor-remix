@@ -17,7 +17,9 @@ function SidebarProperties( editor ) {
 	container.addTab( 'geometryTab', strings.getKey( 'sidebar/properties/geometry' ), new SidebarGeometry( editor ) );
 	container.addTab( 'materialTab', strings.getKey( 'sidebar/properties/material' ), new SidebarMaterial( editor ) );
 	container.addTab( 'scriptTab', strings.getKey( 'sidebar/properties/script' ), new SidebarScript( editor ) );
+	container.addTab( 'animateTab', "動畫", new SidebarAnimate( editor ) );
 	container.select( 'objectTab' );
+	
 
 	function getTabByTabId( tabs, tabId ) {
 
