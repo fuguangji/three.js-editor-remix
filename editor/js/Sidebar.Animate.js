@@ -1,6 +1,6 @@
 import { UIPanel, UIText, UIButton } from './libs/ui.js';
 
-function SidebarAnimation( editor ) {
+function SidebarAnimate( editor ) {
 
 	const container = new UIPanel();
 	container.setDisplay('none');
@@ -34,4 +34,4 @@ function SidebarAnimation( editor ) {
 
 }
 
-export { SidebarAnimation };
+export { SidebarAnimate };
