@@ -4,6 +4,7 @@ import { SidebarObject } from './Sidebar.Object.js';
 import { SidebarGeometry } from './Sidebar.Geometry.js';
 import { SidebarMaterial } from './Sidebar.Material.js';
 import { SidebarScript } from './Sidebar.Script.js';
+import { SidebarAnimate } from './Sidebar.Animate.js';
 
 function SidebarProperties( editor ) {
 
