@@ -39,11 +39,53 @@ function SidebarAnimate(editor) {
 
 			const row = new UIRow();
 
-			row.dom.style.cursor = 'grab';
-			row.dom.style.touchAction = 'none';
-			row.dom.style.userSelect = 'none';
 			row.dom.style.border = '1px solid #444';
 			row.dom.style.marginBottom = '4px';
+			row.dom.style.padding = '2px';
+			row.dom.style.display = 'flex';
+			row.dom.style.alignItems = 'center';
+
+			// ======================
+			// 🔥 拖曳把手（重點）
+			// ======================
+			const dragHandle = new UIText('≡');
+			dragHandle.setWidth('20px');
+
+			dragHandle.dom.style.cursor = 'grab';
+			dragHandle.dom.style.userSelect = 'none';
+			dragHandle.dom.style.touchAction = 'none';
+
+			dragHandle.dom.addEventListener('pointerdown', () => {
+				draggingIndex = index;
+				dragHandle.dom.style.opacity = '0.5';
+			});
+
+			dragHandle.dom.addEventListener('pointerup', (e) => {
+
+				if (draggingIndex === null) return;
+
+				const elements = frameList.dom.children;
+				let targetIndex = index;
+
+				for (let i = 0; i < elements.length; i++) {
+
+					const rect = elements[i].getBoundingClientRect();
+
+					if (e.clientY < rect.top + rect.height / 2) {
+						targetIndex = i;
+						break;
+					}
+
+				}
+
+				const temp = frames[draggingIndex];
+				frames[draggingIndex] = frames[targetIndex];
+				frames[targetIndex] = temp;
+
+				draggingIndex = null;
+				updateUI();
+
+			});
 
 			// ===== index =====
 			const label = new UIText(`秒 ${index}`).setWidth('60px');
@@ -72,44 +114,7 @@ function SidebarAnimate(editor) {
 				updateUI();
 			});
 
-			row.add(label, px, py, pz, del);
-
-			// ======================
-			// 🔥 拖曳（核心）
-			// ======================
-			row.dom.addEventListener('pointerdown', (e) => {
-				draggingIndex = index;
-				row.dom.style.opacity = '0.5';
-			});
-
-			row.dom.addEventListener('pointerup', (e) => {
-
-				if (draggingIndex === null) return;
-
-				const elements = frameList.dom.children;
-				let targetIndex = index;
-
-				for (let i = 0; i < elements.length; i++) {
-
-					const rect = elements[i].getBoundingClientRect();
-
-					if (e.clientY < rect.top + rect.height / 2) {
-						targetIndex = i;
-						break;
-					}
-
-				}
-
-				// swap
-				const temp = frames[draggingIndex];
-				frames[draggingIndex] = frames[targetIndex];
-				frames[targetIndex] = temp;
-
-				draggingIndex = null;
-
-				updateUI();
-
-			});
+			row.add(dragHandle, label, px, py, pz, del);
 
 			frameList.add(row);
 
@@ -152,7 +157,7 @@ function SidebarAnimate(editor) {
 	container.add(playBtn);
 
 	// ======================
-	// 動畫應用
+	// 動畫套用
 	// ======================
 	function applyTimeline(object, time) {
 
