@@ -8,8 +8,7 @@ function SidebarAnimate(editor) {
 	container.setDisplay('none');
 
 	let currentObject = null;
-
-	let dragIndex = null;
+	let draggingIndex = null;
 
 	const title = new UIText('動畫編輯器');
 	container.add(title);
@@ -17,28 +16,39 @@ function SidebarAnimate(editor) {
 	const frameList = new UIPanel();
 	container.add(frameList);
 
-	// ========== UI 重建 ==========
+	// ======================
+	// UI 更新
+	// ======================
 	function updateUI() {
 
 		frameList.clear();
+
 		if (!currentObject) return;
 
-		const timeline = currentObject.userData.timeline || { frames: [] };
-		currentObject.userData.timeline = timeline;
+		if (!currentObject.userData.timeline) {
+			currentObject.userData.timeline = { loop: true, frames: [] };
+		}
 
-		timeline.frames.forEach((frame, index) => {
+		const timeline = currentObject.userData.timeline;
+		const frames = timeline.frames;
+
+		// 🔥 固定時間（1秒一格）
+		frames.forEach((f, i) => f.t = i);
+
+		frames.forEach((frame, index) => {
 
 			const row = new UIRow();
+
 			row.dom.style.cursor = 'grab';
+			row.dom.style.touchAction = 'none';
 			row.dom.style.userSelect = 'none';
+			row.dom.style.border = '1px solid #444';
+			row.dom.style.marginBottom = '4px';
 
-			// === 顯示時間 ===
-			const time = new UINumber(frame.t).setWidth('50px');
-			time.onChange(() => {
-				frame.t = time.getValue();
-			});
+			// ===== index =====
+			const label = new UIText(`秒 ${index}`).setWidth('60px');
 
-			// === position ===
+			// ===== position =====
 			const px = new UINumber(frame.pos?.[0] || 0).setWidth('40px');
 			const py = new UINumber(frame.pos?.[1] || 0).setWidth('40px');
 			const pz = new UINumber(frame.pos?.[2] || 0).setWidth('40px');
@@ -55,48 +65,50 @@ function SidebarAnimate(editor) {
 			py.onChange(syncPos);
 			pz.onChange(syncPos);
 
-			// === delete ===
-			const del = new UIButton('X');
+			// ===== delete =====
+			const del = new UIButton('刪');
 			del.onClick(() => {
-				timeline.frames.splice(index, 1);
+				frames.splice(index, 1);
 				updateUI();
 			});
 
-			row.add(
-				new UIText(`#${index}`).setWidth('30px'),
-				time,
-				px, py, pz,
-				del
-			);
+			row.add(label, px, py, pz, del);
 
 			// ======================
-			// DRAG LOGIC（重點）
+			// 🔥 拖曳（核心）
 			// ======================
-			row.dom.draggable = true;
-
-			row.dom.addEventListener('dragstart', (e) => {
-				dragIndex = index;
-				e.dataTransfer.effectAllowed = 'move';
+			row.dom.addEventListener('pointerdown', (e) => {
+				draggingIndex = index;
+				row.dom.style.opacity = '0.5';
 			});
 
-			row.dom.addEventListener('dragover', (e) => {
-				e.preventDefault();
-			});
+			row.dom.addEventListener('pointerup', (e) => {
 
-			row.dom.addEventListener('drop', (e) => {
-				e.preventDefault();
+				if (draggingIndex === null) return;
 
-				if (dragIndex === null || dragIndex === index) return;
+				const elements = frameList.dom.children;
+				let targetIndex = index;
 
-				const frames = timeline.frames;
+				for (let i = 0; i < elements.length; i++) {
 
-				const temp = frames[dragIndex];
-				frames[dragIndex] = frames[index];
-				frames[index] = temp;
+					const rect = elements[i].getBoundingClientRect();
 
-				dragIndex = null;
+					if (e.clientY < rect.top + rect.height / 2) {
+						targetIndex = i;
+						break;
+					}
+
+				}
+
+				// swap
+				const temp = frames[draggingIndex];
+				frames[draggingIndex] = frames[targetIndex];
+				frames[targetIndex] = temp;
+
+				draggingIndex = null;
 
 				updateUI();
+
 			});
 
 			frameList.add(row);
@@ -105,14 +117,12 @@ function SidebarAnimate(editor) {
 
 	}
 
-	// ========== add frame ==========
-	const addBtn = new UIButton('新增 Frame (1秒)').onClick(() => {
+	// ======================
+	// 新增 frame
+	// ======================
+	const addBtn = new UIButton('新增一秒').onClick(() => {
 
 		if (!currentObject) return;
-
-		if (!currentObject.userData.timeline) {
-			currentObject.userData.timeline = { frames: [] };
-		}
 
 		const frames = currentObject.userData.timeline.frames;
 
@@ -128,42 +138,54 @@ function SidebarAnimate(editor) {
 
 	container.add(addBtn);
 
-	// ========== play ==========
+	// ======================
+	// 播放
+	// ======================
 	let playing = false;
-	let start = 0;
+	let startTime = 0;
 
-	const playBtn = new UIButton('Play').onClick(() => {
+	const playBtn = new UIButton('播放').onClick(() => {
 		playing = !playing;
-		start = performance.now();
+		startTime = performance.now();
 	});
 
 	container.add(playBtn);
 
-	// ========== apply ==========
-	function apply(object, t) {
+	// ======================
+	// 動畫應用
+	// ======================
+	function applyTimeline(object, time) {
 
 		const timeline = object.userData.timeline;
 		if (!timeline || timeline.frames.length < 2) return;
 
-		const f = timeline.frames;
+		const frames = timeline.frames;
 
-		let a = f[0], b = f[f.length - 1];
+		let f1 = frames[0];
+		let f2 = frames[frames.length - 1];
 
-		for (let i = 0; i < f.length - 1; i++) {
-			if (t >= f[i].t && t <= f[i + 1].t) {
-				a = f[i];
-				b = f[i + 1];
+		for (let i = 0; i < frames.length - 1; i++) {
+
+			if (time >= frames[i].t && time <= frames[i + 1].t) {
+				f1 = frames[i];
+				f2 = frames[i + 1];
 				break;
 			}
+
 		}
 
-		const u = (t - a.t) / Math.max(0.0001, (b.t - a.t));
+		const duration = f2.t - f1.t;
+		const alpha = duration === 0 ? 0 : (time - f1.t) / duration;
 
-		object.position.set(
-			lerp(a.pos[0], b.pos[0], u),
-			lerp(a.pos[1], b.pos[1], u),
-			lerp(a.pos[2], b.pos[2], u)
-		);
+		if (f1.pos && f2.pos) {
+
+			object.position.set(
+				lerp(f1.pos[0], f2.pos[0], alpha),
+				lerp(f1.pos[1], f2.pos[1], alpha),
+				lerp(f1.pos[2], f2.pos[2], alpha)
+			);
+
+		}
 
 	}
 
@@ -171,11 +193,13 @@ function SidebarAnimate(editor) {
 		return a + (b - a) * t;
 	}
 
-	// ========== signals ==========
-	editor.signals.objectSelected.add((obj) => {
+	// ======================
+	// signals
+	// ======================
+	editor.signals.objectSelected.add((object) => {
 
-		if (obj && obj.isMesh) {
-			currentObject = obj;
+		if (object && object.isMesh) {
+			currentObject = object;
 			container.setDisplay('');
 			updateUI();
 		} else {
@@ -189,8 +213,9 @@ function SidebarAnimate(editor) {
 
 		if (!playing || !currentObject) return;
 
-		const t = (performance.now() - start) / 1000;
-		apply(currentObject, t);
+		const t = (performance.now() - startTime) / 1000;
+
+		applyTimeline(currentObject, t);
 
 	});
 
