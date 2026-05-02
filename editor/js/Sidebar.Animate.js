@@ -8,20 +8,20 @@ function SidebarAnimate(editor) {
 	container.setDisplay('none');
 
 	let currentObject = null;
-	let draggingIndex = null;
+
+	let draggingEl = null;
+	let placeholder = null;
+	let startIndex = -1;
+	let isCopyMode = false;
 
 	const title = new UIText('動畫編輯器');
 	container.add(title);
 
-	const frameList = new UIPanel();
-	container.add(frameList);
+	const timelineContainer = new UIPanel();
+	container.add(timelineContainer);
 
-	// ======================
-	// UI 更新
-	// ======================
-	function updateUI() {
-
-		frameList.clear();
+	// ➕ 新增 frame
+	const addFrameBtn = new UIButton('新增1秒').onClick(() => {
 
 		if (!currentObject) return;
 
@@ -29,199 +29,229 @@ function SidebarAnimate(editor) {
 			currentObject.userData.timeline = { loop: true, frames: [] };
 		}
 
-		const timeline = currentObject.userData.timeline;
-		const frames = timeline.frames;
-
-		// 🔥 固定時間（1秒一格）
-		frames.forEach((f, i) => f.t = i);
-
-		frames.forEach((frame, index) => {
-
-			const row = new UIRow();
-
-			row.dom.style.border = '1px solid #444';
-			row.dom.style.marginBottom = '4px';
-			row.dom.style.padding = '2px';
-			row.dom.style.display = 'flex';
-			row.dom.style.alignItems = 'center';
-
-			// ======================
-			// 🔥 拖曳把手（重點）
-			// ======================
-			const dragHandle = new UIText('≡');
-			dragHandle.setWidth('20px');
-
-			dragHandle.dom.style.cursor = 'grab';
-			dragHandle.dom.style.userSelect = 'none';
-			dragHandle.dom.style.touchAction = 'none';
-
-			dragHandle.dom.addEventListener('pointerdown', () => {
-				draggingIndex = index;
-				dragHandle.dom.style.opacity = '0.5';
-			});
-
-			dragHandle.dom.addEventListener('pointerup', (e) => {
-
-				if (draggingIndex === null) return;
-
-				const elements = frameList.dom.children;
-				let targetIndex = index;
-
-				for (let i = 0; i < elements.length; i++) {
-
-					const rect = elements[i].getBoundingClientRect();
-
-					if (e.clientY < rect.top + rect.height / 2) {
-						targetIndex = i;
-						break;
-					}
-
-				}
-
-				const temp = frames[draggingIndex];
-				frames[draggingIndex] = frames[targetIndex];
-				frames[targetIndex] = temp;
-
-				draggingIndex = null;
-				updateUI();
-
-			});
-
-			// ===== index =====
-			const label = new UIText(`秒 ${index}`).setWidth('60px');
-
-			// ===== position =====
-			const px = new UINumber(frame.pos?.[0] || 0).setWidth('40px');
-			const py = new UINumber(frame.pos?.[1] || 0).setWidth('40px');
-			const pz = new UINumber(frame.pos?.[2] || 0).setWidth('40px');
-
-			function syncPos() {
-				frame.pos = [
-					px.getValue(),
-					py.getValue(),
-					pz.getValue()
-				];
-			}
-
-			px.onChange(syncPos);
-			py.onChange(syncPos);
-			pz.onChange(syncPos);
-
-			// ===== delete =====
-			const del = new UIButton('刪');
-			del.onClick(() => {
-				frames.splice(index, 1);
-				updateUI();
-			});
-
-			row.add(dragHandle, label, px, py, pz, del);
-
-			frameList.add(row);
-
+		currentObject.userData.timeline.frames.push({
+			t: 0,
+			pos: [0,0,0],
+			rot: [0,0,0],
+			scl: [1,1,1]
 		});
 
-	}
-
-	// ======================
-	// 新增 frame
-	// ======================
-	const addBtn = new UIButton('新增一秒').onClick(() => {
-
-		if (!currentObject) return;
-
-		const frames = currentObject.userData.timeline.frames;
-
-		frames.push({
-			t: frames.length,
-			pos: [0, 0, 0],
-			rot: [0, 0, 0]
-		});
-
+		reindex();
 		updateUI();
 
 	});
 
-	container.add(addBtn);
+	container.add(addFrameBtn);
 
-	// ======================
-	// 播放
-	// ======================
-	let playing = false;
-	let startTime = 0;
+	// =========================
+	// UI 更新
+	// =========================
+	function updateUI() {
 
-	const playBtn = new UIButton('播放').onClick(() => {
-		playing = !playing;
-		startTime = performance.now();
-	});
+		timelineContainer.clear();
+		if (!currentObject) return;
 
-	container.add(playBtn);
+		const timeline = currentObject.userData.timeline || { frames: [] };
 
-	// ======================
-	// 動畫套用
-	// ======================
-	function applyTimeline(object, time) {
+		timeline.frames.forEach((frame, index) => {
 
-		const timeline = object.userData.timeline;
-		if (!timeline || timeline.frames.length < 2) return;
+			const row = new UIRow();
+			row.dom.style.display = "flex";
+			row.dom.style.alignItems = "center";
+			row.dom.style.gap = "6px";
+			row.dom.style.padding = "6px";
+			row.dom.style.border = "1px solid #444";
+			row.dom.style.marginBottom = "4px";
+			row.dom.style.background = "#1e1e1e";
+			row.dom.style.transition = "transform 0.15s ease";
 
-		const frames = timeline.frames;
+			// 🔹 拖曳把手
+			const handle = document.createElement("div");
+			handle.innerHTML = "☰";
+			handle.style.cursor = "grab";
+			handle.style.background = "#333";
+			handle.style.color = "#fff";
+			handle.style.padding = "4px";
 
-		let f1 = frames[0];
-		let f2 = frames[frames.length - 1];
+			row.dom.appendChild(handle);
 
-		for (let i = 0; i < frames.length - 1; i++) {
+			const label = new UIText(`t=${frame.t}`);
+			row.add(label);
 
-			if (time >= frames[i].t && time <= frames[i + 1].t) {
-				f1 = frames[i];
-				f2 = frames[i + 1];
-				break;
+			// pos
+			const posX = new UINumber(frame.pos?.[0] || 0).setWidth('40px').onChange(()=>frame.pos[0]=posX.getValue());
+			const posY = new UINumber(frame.pos?.[1] || 0).setWidth('40px').onChange(()=>frame.pos[1]=posY.getValue());
+			const posZ = new UINumber(frame.pos?.[2] || 0).setWidth('40px').onChange(()=>frame.pos[2]=posZ.getValue());
+
+			row.add(posX,posY,posZ);
+
+			// ❌ 刪除
+			const del = new UIButton("X").onClick(()=>{
+				timeline.frames.splice(index,1);
+				reindex();
+				updateUI();
+			});
+			row.add(del);
+
+			timelineContainer.add(row);
+
+			// =====================
+			// 🔥 Drag 系統
+			// =====================
+
+			handle.onmousedown = (e)=>{
+
+				e.preventDefault();
+
+				draggingEl = row.dom;
+				startIndex = index;
+				isCopyMode = e.ctrlKey;
+
+				// placeholder
+				placeholder = document.createElement("div");
+				placeholder.style.height = draggingEl.offsetHeight+"px";
+				placeholder.style.background = "#888";
+				placeholder.style.opacity = "0.3";
+				placeholder.style.border = "1px dashed #aaa";
+
+				timelineContainer.dom.insertBefore(placeholder, draggingEl);
+
+				// 拖曳樣式
+				draggingEl.style.position = "absolute";
+				draggingEl.style.zIndex = "1000";
+				draggingEl.style.width = placeholder.offsetWidth+"px";
+				draggingEl.style.pointerEvents = "none";
+
+				document.body.appendChild(draggingEl);
+
+				moveAt(e.pageY);
+
+				function moveAt(pageY){
+					draggingEl.style.top = pageY - draggingEl.offsetHeight/2 + "px";
+				}
+
+				function onMouseMove(e){
+
+					moveAt(e.pageY);
+
+					const after = getDragAfterElement(timelineContainer.dom, e.clientY);
+
+					if(after==null){
+						timelineContainer.dom.appendChild(placeholder);
+					}else{
+						timelineContainer.dom.insertBefore(placeholder, after);
+					}
+
+					// 🔥 平滑動畫
+					animateReorder();
+				}
+
+				document.addEventListener("mousemove", onMouseMove);
+
+				document.addEventListener("mouseup", ()=>{
+
+					document.removeEventListener("mousemove", onMouseMove);
+
+					const newIndex = [...timelineContainer.dom.children].indexOf(placeholder);
+
+					const frames = currentObject.userData.timeline.frames;
+
+					if(isCopyMode){
+						// 🔥 Ctrl 複製
+						const copy = JSON.parse(JSON.stringify(frames[startIndex]));
+						frames.splice(newIndex,0,copy);
+					}else{
+						const moved = frames.splice(startIndex,1)[0];
+						frames.splice(newIndex,0,moved);
+					}
+
+					reindex();
+
+					// 還原
+					draggingEl.remove();
+					placeholder.remove();
+
+					draggingEl = null;
+					placeholder = null;
+
+					updateUI();
+
+				},{once:true});
+			};
+		});
+	}
+
+	// =====================
+	// 🔥 動畫滑動效果
+	// =====================
+	function animateReorder(){
+
+		const items = [...timelineContainer.dom.children];
+
+		items.forEach(el=>{
+			const rect = el.getBoundingClientRect();
+			el._lastY = rect.top;
+		});
+
+		requestAnimationFrame(()=>{
+
+			items.forEach(el=>{
+				const newY = el.getBoundingClientRect().top;
+				const dy = el._lastY - newY;
+
+				if(dy){
+					el.style.transform = `translateY(${dy}px)`;
+					el.style.transition = "none";
+
+					requestAnimationFrame(()=>{
+						el.style.transform = "";
+						el.style.transition = "transform 0.15s ease";
+					});
+				}
+			});
+		});
+	}
+
+	// =====================
+	// 🔧 插入位置計算
+	// =====================
+	function getDragAfterElement(container, y){
+
+		const els = [...container.children].filter(el=>el!==draggingEl && el!==placeholder);
+
+		let closest = null;
+		let offset = Number.NEGATIVE_INFINITY;
+
+		els.forEach(child=>{
+			const box = child.getBoundingClientRect();
+			const diff = y - box.top - box.height/2;
+
+			if(diff < 0 && diff > offset){
+				offset = diff;
+				closest = child;
 			}
+		});
 
-		}
-
-		const duration = f2.t - f1.t;
-		const alpha = duration === 0 ? 0 : (time - f1.t) / duration;
-
-		if (f1.pos && f2.pos) {
-
-			object.position.set(
-				lerp(f1.pos[0], f2.pos[0], alpha),
-				lerp(f1.pos[1], f2.pos[1], alpha),
-				lerp(f1.pos[2], f2.pos[2], alpha)
-			);
-
-		}
-
+		return closest;
 	}
 
-	function lerp(a, b, t) {
-		return a + (b - a) * t;
+	// =====================
+	function reindex(){
+		const frames = currentObject.userData.timeline.frames;
+		frames.forEach((f,i)=>f.t=i);
 	}
+	// =====================
 
-	// ======================
-	// signals
-	// ======================
-	editor.signals.objectSelected.add((object) => {
+	editor.signals.objectSelected.add((object)=>{
 
-		if (object && object.isMesh) {
+		if(object && object.isMesh){
 			currentObject = object;
 			container.setDisplay('');
 			updateUI();
-		} else {
+		}else{
 			currentObject = null;
 			container.setDisplay('none');
 		}
-
-	});
-
-	editor.signals.rendererUpdated.add(() => {
-
-		if (!playing || !currentObject) return;
-
-		const t = (performance.now() - startTime) / 1000;
-
-		applyTimeline(currentObject, t);
-
 	});
 
 	return container;
